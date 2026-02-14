@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .PHONY: test bench
 
 test:
-	go test ./... -race -v
+	go test ./... -race
 
 bench:
 	go test ./... -bench=. -benchmem
