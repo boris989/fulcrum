@@ -7,13 +7,21 @@ import (
 	"time"
 
 	"github.com/boris989/fulcrum/internal/platform/app"
+	"github.com/boris989/fulcrum/internal/platform/config"
 	"github.com/boris989/fulcrum/internal/platform/logger"
 )
 
 func main() {
+	cfg, err := config.Load()
+
+	if err != nil {
+		_, _ = os.Stderr.WriteString(err.Error() + "\n")
+		os.Exit(1)
+	}
+
 	log := logger.New(logger.Config{
-		Service: "orders",
-		Env:     "local",
+		Service: cfg.Service,
+		Env:     cfg.Env,
 		Level:   slog.LevelInfo,
 	})
 
