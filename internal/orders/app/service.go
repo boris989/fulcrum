@@ -13,48 +13,70 @@ type Repository interface {
 }
 
 type Service struct {
-	repo Repository
+	txm TxManager
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(txm TxManager) *Service {
+	return &Service{txm: txm}
 }
 
-func (s *Service) CreateOrder(ctx context.Context, amount int64) (*orders.Order, []orders.Event, error) {
-	o, err := orders.NewOrder(amount)
+func (s *Service) CreateOrder(ctx context.Context, amount int64) (*orders.Order, error) {
+	var created *orders.Order
+
+	err := s.txm.WithTx(ctx, func(ctx context.Context, tx Tx) error {
+		o, err := orders.NewOrder(amount)
+		if err != nil {
+			return err
+		}
+
+		events := o.PendingEvents()
+
+		if err := tx.Orders().Save(ctx, o); err != nil {
+			return err
+		}
+
+		if err := tx.Outbox().Add(ctx, o.ID(), events); err != nil {
+			return err
+		}
+
+		tx.OnCommit(o.ClearEvents)
+
+		created = o
+		return nil
+	})
 
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	if err := s.repo.Save(ctx, o); err != nil {
-		return nil, nil, err
-	}
-
-	events := o.PullEvents()
-
-	return o, events, nil
+	return created, nil
 }
 
-func (s *Service) PayOrder(ctx context.Context, id string) ([]orders.Event, error) {
-	o, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
+func (s *Service) PayOrder(ctx context.Context, id string) error {
+	return s.txm.WithTx(ctx, func(ctx context.Context, tx Tx) error {
+		o, err := tx.Orders().GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
 
-	if o == nil {
-		return nil, errors.New("order not found")
-	}
+		if o == nil {
+			return errors.New("order not found")
+		}
 
-	if err := o.Pay(); err != nil {
-		return nil, err
-	}
+		if err := o.Pay(); err != nil {
+			return err
+		}
 
-	if err := s.repo.Save(ctx, o); err != nil {
-		return nil, err
-	}
+		events := o.PendingEvents()
 
-	events := o.PullEvents()
+		if err := tx.Orders().Save(ctx, o); err != nil {
+			return nil
+		}
 
-	return events, nil
+		if err := tx.Outbox().Add(ctx, o.ID(), events); err != nil {
+			return err
+		}
+
+		tx.OnCommit(o.ClearEvents)
+		return nil
+	})
 }

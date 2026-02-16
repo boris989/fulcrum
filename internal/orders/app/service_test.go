@@ -3,66 +3,42 @@ package app
 import (
 	"context"
 	"testing"
-
-	"github.com/boris989/fulcrum/internal/orders"
 )
 
-type fakeRepo struct {
-	data map[string]*orders.Order
-}
+func TestCreateOrderSuccess(t *testing.T) {
+	txm := newMemTxManager()
+	svc := NewService(txm)
 
-func newFakeRepo() *fakeRepo {
-	return &fakeRepo{data: make(map[string]*orders.Order)}
-}
-
-func (r *fakeRepo) Save(ctx context.Context, o *orders.Order) error {
-	r.data[o.ID()] = o
-	return nil
-}
-
-func (r *fakeRepo) GetByID(ctx context.Context, id string) (*orders.Order, error) {
-	return r.data[id], nil
-}
-
-func TestCreateOrder(t *testing.T) {
-	repo := newFakeRepo()
-	svc := NewService(repo)
-
-	o, events, err := svc.CreateOrder(context.Background(), 100)
-
+	o, err := svc.CreateOrder(context.Background(), 100)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if o == nil {
-		t.Fatal("order should not be nil")
+		t.Fatalf("order is nil")
 	}
 
-	if len(events) != 1 {
-		t.Fatalf("got %d, want %d", len(events), 1)
-	}
-
-	if events[0].Name() != "OrderCreated" {
-		t.Fatalf("got %s, want %s", events[0].Name(), "OrderCreated")
+	if len(txm.orders) != 1 {
+		t.Fatalf("order not saved")
 	}
 }
 
-func TestPayOrder(t *testing.T) {
-	repo := newFakeRepo()
-	svc := NewService(repo)
+func TestPayOrderSuccess(t *testing.T) {
+	txm := newMemTxManager()
+	svc := NewService(txm)
 
-	o, _, _ := svc.CreateOrder(context.Background(), 100)
-	events, err := svc.PayOrder(context.Background(), o.ID())
+	o, _ := svc.CreateOrder(context.Background(), 100)
 
+	err := svc.PayOrder(context.Background(), o.ID())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(events) != 1 {
-		t.Fatalf("got %d, want %d", len(events), 1)
+	if txm.orders[o.ID()].Status() != "PAID" {
+		t.Fatalf("status not updated")
 	}
 
-	if events[0].Name() != "OrderPaid" {
-		t.Fatalf("got %s, want %s", events[0].Name(), "OrderPaid")
+	if len(txm.outbox) != 2 { // Created + Paid
+		t.Fatalf("expected 2 outbox records, got %d", len(txm.outbox))
 	}
 }

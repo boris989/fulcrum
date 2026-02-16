@@ -86,8 +86,23 @@ func (o *Order) Cancel() error {
 	return nil
 }
 
-func (o *Order) PullEvents() []Event {
-	ev := o.events
+func (o *Order) PendingEvents() []Event {
+	if len(o.events) == 0 {
+		return nil
+	}
+
+	cp := make([]Event, len(o.events))
+	copy(cp, o.events)
+
+	return cp
+}
+
+func (o *Order) ClearEvents() {
 	o.events = nil
+}
+
+func (o *Order) PullEvents() []Event {
+	ev := o.PendingEvents()
+	o.ClearEvents()
 	return ev
 }
