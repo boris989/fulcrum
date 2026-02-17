@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/boris989/fulcrum/internal/orders"
+	"github.com/boris989/fulcrum/internal/orders/app"
 )
 
 type OrderRepo struct {
@@ -53,7 +54,7 @@ func (r *OrderRepo) Save(ctx context.Context, o *orders.Order) error {
 	}
 
 	if rows == 0 {
-		return ErrOptimisticLock
+		return app.ErrOptimisticLock
 	}
 
 	o.SetVersion(o.Version() + 1)

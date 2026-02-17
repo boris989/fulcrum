@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
+	app2 "github.com/boris989/fulcrum/internal/orders/app"
 	"github.com/boris989/fulcrum/internal/platform/app"
 	"github.com/boris989/fulcrum/internal/platform/config"
 	"github.com/boris989/fulcrum/internal/platform/logger"
+	"github.com/boris989/fulcrum/internal/storage/memory"
+	"github.com/boris989/fulcrum/internal/storage/postgres"
 	"github.com/boris989/fulcrum/internal/transport/httpserver"
 )
 
@@ -27,9 +31,30 @@ func main() {
 		Level:   slog.LevelInfo,
 	})
 
+	dsn := os.Getenv("DB_DSN")
+
+	var txm app2.TxManager
+
+	if dsn == "" {
+		txm = memory.NewTxManager()
+		log.Info("using in-memory storage")
+	} else {
+		db, err := sql.Open("postgres", dsn)
+
+		if err != nil {
+			log.Error("failed to connect to database", slog.Any("err", err))
+			os.Exit(1)
+		}
+
+		txm = postgres.NewTxManager(db)
+	}
+
+	svc := app2.NewService(txm)
+
 	a := app.New(func(ctx context.Context) error {
 		mux := http.NewServeMux()
 
+		httpserver.RegisterHealth(mux, nil)
 		srv := httpserver.New(mux, httpserver.Config{
 			Addr:              cfg.HTTPAddr,
 			ReadHeaderTimeout: 5 * time.Second,
