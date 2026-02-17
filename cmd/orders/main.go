@@ -15,6 +15,7 @@ import (
 	"github.com/boris989/fulcrum/internal/storage/memory"
 	"github.com/boris989/fulcrum/internal/storage/postgres"
 	"github.com/boris989/fulcrum/internal/transport/httpserver"
+	"github.com/boris989/fulcrum/internal/transport/httpserver/middleware"
 )
 
 func main() {
@@ -54,8 +55,13 @@ func main() {
 	a := app.New(func(ctx context.Context) error {
 		mux := http.NewServeMux()
 
-		httpserver.RegisterHealth(mux, nil)
-		httpserver.RegisterOrders(mux, svc)
+		handler := httpserver.Chain(
+			mux,
+			middleware.Recovery(log),
+		)
+
+		httpserver.RegisterHealth(handler, nil)
+		httpserver.RegisterOrders(handler, svc)
 
 		srv := httpserver.New(mux, httpserver.Config{
 			Addr:              cfg.HTTPAddr,
