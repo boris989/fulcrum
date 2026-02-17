@@ -55,6 +55,8 @@ func main() {
 		mux := http.NewServeMux()
 
 		httpserver.RegisterHealth(mux, nil)
+		httpserver.RegisterOrders(mux, svc)
+
 		srv := httpserver.New(mux, httpserver.Config{
 			Addr:              cfg.HTTPAddr,
 			ReadHeaderTimeout: 5 * time.Second,
