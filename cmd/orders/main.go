@@ -55,15 +55,15 @@ func main() {
 	a := app.New(func(ctx context.Context) error {
 		mux := http.NewServeMux()
 
+		httpserver.RegisterHealth(mux, nil)
+		httpserver.RegisterOrders(mux, svc)
+
 		handler := httpserver.Chain(
 			mux,
 			middleware.Recovery(log),
+			middleware.RequestID(),
 		)
-
-		httpserver.RegisterHealth(handler, nil)
-		httpserver.RegisterOrders(handler, svc)
-
-		srv := httpserver.New(mux, httpserver.Config{
+		srv := httpserver.New(handler, httpserver.Config{
 			Addr:              cfg.HTTPAddr,
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       10 * time.Second,
