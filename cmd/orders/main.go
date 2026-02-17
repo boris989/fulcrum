@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	_ "github.com/lib/pq"
 	"log/slog"
 	"net/http"
 	"os"
@@ -33,6 +35,8 @@ func main() {
 	})
 
 	dsn := os.Getenv("DB_DSN")
+
+	fmt.Println(dsn, "dsn")
 
 	var txm app2.TxManager
 
