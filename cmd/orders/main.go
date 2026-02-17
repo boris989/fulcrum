@@ -62,6 +62,7 @@ func main() {
 			mux,
 			middleware.Recovery(log),
 			middleware.RequestID(),
+			middleware.Logging(log),
 		)
 		srv := httpserver.New(handler, httpserver.Config{
 			Addr:              cfg.HTTPAddr,
