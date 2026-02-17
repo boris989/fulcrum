@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/boris989/fulcrum/internal/outbox"
 	_ "github.com/lib/pq"
 	"log/slog"
 	"net/http"
@@ -36,27 +37,39 @@ func main() {
 
 	dsn := os.Getenv("DB_DSN")
 
-	fmt.Println(dsn, "dsn")
+	a := app.New(func(ctx context.Context) error {
+		var txm app2.TxManager
 
-	var txm app2.TxManager
+		if dsn == "" {
+			txm = memory.NewTxManager()
+			log.Info("using in-memory storage")
+		} else {
+			db, err := sql.Open("postgres", dsn)
 
-	if dsn == "" {
-		txm = memory.NewTxManager()
-		log.Info("using in-memory storage")
-	} else {
-		db, err := sql.Open("postgres", dsn)
+			if err != nil {
+				log.Error("failed to connect to database", slog.Any("err", err))
+				os.Exit(1)
+			}
 
-		if err != nil {
-			log.Error("failed to connect to database", slog.Any("err", err))
-			os.Exit(1)
+			txm = postgres.NewTxManager(db)
+
+			repo := outbox.NewRepository(db)
+			worker := outbox.NewWorker(
+				db,
+				repo,
+				&outbox.DummyPublisher{},
+				outbox.WorkerConfig{
+					BatchSize:    10,
+					PollInterval: 2 * time.Second,
+				},
+				log,
+			)
+
+			go worker.Run(ctx)
 		}
 
-		txm = postgres.NewTxManager(db)
-	}
+		svc := app2.NewService(txm)
 
-	svc := app2.NewService(txm)
-
-	a := app.New(func(ctx context.Context) error {
 		mux := http.NewServeMux()
 
 		httpserver.RegisterHealth(mux, nil)

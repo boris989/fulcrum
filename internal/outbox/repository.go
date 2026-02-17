@@ -12,7 +12,7 @@ type Message struct {
 	ID          string
 	AggregateID string
 	EventType   string
-	Payload     string
+	Payload     []byte
 	CreatedAt   time.Time
 }
 

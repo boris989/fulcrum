@@ -1,1 +1,101 @@
 package outbox
+
+import (
+	"context"
+	"database/sql"
+	"log/slog"
+	"time"
+)
+
+type WorkerConfig struct {
+	BatchSize    int
+	PollInterval time.Duration
+}
+
+type Worker struct {
+	db        *sql.DB
+	repo      *Repository
+	publisher Publisher
+	cfg       WorkerConfig
+	logger    *slog.Logger
+}
+
+func NewWorker(
+	db *sql.DB,
+	repo *Repository,
+	publisher Publisher,
+	cfg WorkerConfig,
+	logger *slog.Logger,
+) *Worker {
+	return &Worker{
+		db:        db,
+		repo:      repo,
+		cfg:       cfg,
+		publisher: publisher,
+		logger:    logger,
+	}
+}
+
+func (w *Worker) Run(ctx context.Context) {
+	w.logger.Info("outbox worker started")
+
+	for {
+		select {
+		case <-ctx.Done():
+			w.logger.Info("outbox worker shutting down")
+			return
+		default:
+		}
+
+		processed, err := w.processBatch(ctx)
+
+		if err != nil {
+			w.logger.Error("batch processing failed", slog.Any("err", err))
+			time.Sleep(w.cfg.PollInterval)
+			continue
+		}
+
+		if processed == 0 {
+			time.Sleep(w.cfg.PollInterval)
+		}
+	}
+}
+
+func (w *Worker) processBatch(ctx context.Context) (int, error) {
+	tx, err := w.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	msgs, err := w.repo.FetchBacth(ctx, tx, w.cfg.BatchSize)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(msgs) == 0 {
+		return 0, nil
+	}
+
+	for _, m := range msgs {
+		if err := w.publisher.Publish(ctx, m.EventType, m.AggregateID, m.Payload); err != nil {
+			return 0, err
+		}
+	}
+
+	ids := make([]string, len(msgs))
+
+	for i, msg := range msgs {
+		ids[i] = msg.ID
+	}
+
+	if err := w.repo.MarkPublished(ctx, tx, ids); err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return len(msgs), nil
+}
