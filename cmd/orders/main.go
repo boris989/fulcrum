@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/boris989/fulcrum/internal/platform/app"
 	"github.com/boris989/fulcrum/internal/platform/config"
 	"github.com/boris989/fulcrum/internal/platform/logger"
+	"github.com/boris989/fulcrum/internal/transport/httpserver"
 )
 
 func main() {
@@ -26,17 +28,37 @@ func main() {
 	})
 
 	a := app.New(func(ctx context.Context) error {
-		log.Info("service started")
+		mux := http.NewServeMux()
 
-		<-ctx.Done()
+		srv := httpserver.New(mux, httpserver.Config{
+			Addr:              cfg.HTTPAddr,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       10 * time.Second,
+			WriteTimeout:      10 * time.Second,
+			IdleTimeout:       60 * time.Second,
+			ShutdownTimeout:   cfg.ShutdownTimeout,
+		})
 
-		log.Info("shutdown signal received")
+		errCh := make(chan error, 1)
+		go func() {
+			errCh <- srv.ListenAndServe()
+		}()
 
-		time.Sleep(10 * time.Millisecond)
+		log.Info("http server started", slog.String("addr", cfg.HTTPAddr))
 
-		log.Info("service stopped")
+		select {
+		case <-ctx.Done():
+			log.Info("shutdown requested")
+			_ = srv.Shutdown(context.Background(), cfg.ShutdownTimeout)
+			log.Info("http server stopped")
+			return nil
 
-		return nil
+		case err := <-errCh:
+			if err == http.ErrServerClosed {
+				return nil
+			}
+			return err
+		}
 	})
 
 	os.Exit(a.Run())
