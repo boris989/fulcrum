@@ -22,7 +22,7 @@ func (r *OutboxRepo) Add(ctx context.Context, aggregateID string, events []order
 
 		_, err = r.tx.ExecContext(ctx, `
         	INSERT INTO outbox
-        	(id, aggregate_id, event_id, payload)
+        	(id, aggregate_id, event_type, payload)
         	VALUES ($1, $2, $3, $4)`,
 			uuid.NewString(),
 			aggregateID,

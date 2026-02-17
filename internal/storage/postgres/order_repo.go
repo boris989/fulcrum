@@ -15,7 +15,7 @@ func (r *OrderRepo) Save(ctx context.Context, o *orders.Order) error {
 	if o.Version() == 0 {
 		_, err := r.tx.ExecContext(ctx, `
         	INSERT INTO orders
-        	(id, amount, status, version, created_at, updated_at)\
+        	(id, amount, status, version, created_at, updated_at)
         	VALUES ($1, $2, $3, 1, now(), now())
         `,
 			o.ID(),

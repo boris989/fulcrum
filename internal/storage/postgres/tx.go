@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/boris989/fulcrum/internal/orders"
 	"github.com/boris989/fulcrum/internal/orders/app"
 )
 
@@ -49,7 +48,7 @@ type pgTx struct {
 }
 
 func (t *pgTx) Orders() app.OrdersRepository {
-	return &OrdersRepo{tx: t.tx}
+	return &OrderRepo{tx: t.tx}
 }
 
 func (t *pgTx) Outbox() app.OutboxRepository {
