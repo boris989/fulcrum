@@ -34,14 +34,22 @@ func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 
 			requestID := GetRequestID(r.Context())
 
-			logger.Info("http request",
+			attrs := []any{
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.Int("status", rw.status),
 				slog.Int("bytes", rw.bytes),
 				slog.Duration("duration", duration),
 				slog.String("request_id", requestID),
-			)
+				slog.String("remote_addr", r.RemoteAddr),
+				slog.String("user_agent", r.UserAgent()),
+			}
+
+			if rw.status >= 500 {
+				logger.Error("http request", attrs...)
+			} else {
+				logger.Info("http request", attrs...)
+			}
 		})
 	}
 }
