@@ -12,9 +12,10 @@ const (
 )
 
 type Order struct {
-	id     string
-	amount int64
-	status Status
+	id      string
+	amount  int64
+	status  Status
+	version int64
 
 	events []Event
 }
@@ -48,6 +49,14 @@ func (o *Order) Amount() int64 {
 
 func (o *Order) Status() Status {
 	return o.status
+}
+
+func (o *Order) Version() int64 {
+	return o.version
+}
+
+func (o *Order) SetVersion(version int64) {
+	o.version = version
 }
 
 func (o *Order) Pay() error {

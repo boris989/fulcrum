@@ -2,14 +2,15 @@ package orders
 
 import "errors"
 
-func Rebuild(id string, amount int64, status Status) (*Order, error) {
+func Rebuild(id string, amount int64, status Status, version int64) (*Order, error) {
 	if amount < 0 {
 		return nil, errors.New("invalid amount")
 	}
 
 	return &Order{
-		id:     id,
-		amount: amount,
-		status: status,
+		id:      id,
+		amount:  amount,
+		status:  status,
+		version: version,
 	}, nil
 }
