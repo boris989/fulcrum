@@ -63,6 +63,7 @@ func main() {
 			middleware.Recovery(log),
 			middleware.RequestID(),
 			middleware.Logging(log),
+			middleware.Timeout(5*time.Second),
 		)
 		srv := httpserver.New(handler, httpserver.Config{
 			Addr:              cfg.HTTPAddr,
