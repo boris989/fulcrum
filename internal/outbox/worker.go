@@ -3,13 +3,16 @@ package outbox
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"time"
 )
 
 type WorkerConfig struct {
-	BatchSize    int
-	PollInterval time.Duration
+	BatchSize      int
+	PollInterval   time.Duration
+	MaxRetries     int
+	InitialBackoff time.Duration
 }
 
 type Worker struct {
@@ -78,7 +81,7 @@ func (w *Worker) processBatch(ctx context.Context) (int, error) {
 	}
 
 	for _, m := range msgs {
-		if err := w.publisher.Publish(ctx, m.EventType, m.AggregateID, m.Payload); err != nil {
+		if err := w.retryPublish(ctx, m); err != nil {
 			return 0, err
 		}
 	}
@@ -98,4 +101,34 @@ func (w *Worker) processBatch(ctx context.Context) (int, error) {
 	}
 
 	return len(msgs), nil
+}
+
+func (w *Worker) retryPublish(
+	ctx context.Context,
+	m Message,
+) error {
+	backoff := w.cfg.InitialBackoff
+
+	for attempt := 1; attempt <= w.cfg.MaxRetries; attempt++ {
+		err := w.publisher.Publish(ctx, m.EventType, m.AggregateID, m.Payload)
+
+		if err == nil {
+			return nil
+		}
+
+		w.logger.Warn("publish failed",
+			slog.Int("attempt", attempt),
+			slog.String("event_id", m.ID),
+			slog.Any("err", err),
+		)
+
+		select {
+		case <-time.After(backoff):
+			backoff *= 2
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("max retries exceeded for event %s", m.ID)
 }
