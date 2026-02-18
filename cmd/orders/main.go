@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/boris989/fulcrum/internal/messaging/kafka"
+	"github.com/boris989/fulcrum/internal/observability/metrics"
 	"github.com/boris989/fulcrum/internal/outbox"
 	_ "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	app2 "github.com/boris989/fulcrum/internal/orders/app"
 	"github.com/boris989/fulcrum/internal/platform/app"
@@ -35,6 +37,8 @@ func main() {
 		Env:     cfg.Env,
 		Level:   slog.LevelInfo,
 	})
+
+	metrics.Init()
 
 	dsn := os.Getenv("DB_DSN")
 
@@ -89,12 +93,14 @@ func main() {
 
 		httpserver.RegisterHealth(mux, nil)
 		httpserver.RegisterOrders(mux, svc)
+		mux.Handle("/metrics", promhttp.Handler())
 
 		handler := httpserver.Chain(
 			mux,
 			middleware.Recovery(log),
 			middleware.RequestID(),
 			middleware.Logging(log),
+			middleware.Metrics(),
 			middleware.Timeout(5*time.Second),
 		)
 		srv := httpserver.New(handler, httpserver.Config{
