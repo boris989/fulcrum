@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type WorkerConfig struct {
 	PollInterval   time.Duration
 	MaxRetries     int
 	InitialBackoff time.Duration
+	Concurrency    int
 }
 
 type Worker struct {
@@ -21,7 +23,7 @@ type Worker struct {
 	publisher Publisher
 	cfg       WorkerConfig
 	logger    *slog.Logger
-	done      chan struct{}
+	wg        sync.WaitGroup
 }
 
 func NewWorker(
@@ -37,19 +39,16 @@ func NewWorker(
 		cfg:       cfg,
 		publisher: publisher,
 		logger:    logger,
-		done:      make(chan struct{}),
 	}
 }
 
-func (w *Worker) Run(ctx context.Context) {
-	defer close(w.done)
-
-	w.logger.Info("outbox worker started")
+func (w *Worker) runLoop(ctx context.Context, id int) {
+	w.logger.Info("outbox worker started", slog.Int("worker_id", id))
 
 	for {
 		select {
 		case <-ctx.Done():
-			w.logger.Info("outbox worker shutting down")
+			w.logger.Info("outbox worker shutting down", slog.Int("worker_id", id))
 			return
 		default:
 		}
@@ -57,7 +56,9 @@ func (w *Worker) Run(ctx context.Context) {
 		processed, err := w.processBatch(ctx)
 
 		if err != nil {
-			w.logger.Error("batch processing failed", slog.Any("err", err))
+			w.logger.Error("batch processing failed",
+				slog.Int("worker_id", id),
+				slog.Any("err", err))
 			time.Sleep(w.cfg.PollInterval)
 			continue
 		}
@@ -138,5 +139,15 @@ func (w *Worker) retryPublish(
 }
 
 func (w *Worker) Wait() {
-	<-w.done
+	w.wg.Wait()
+}
+
+func (w *Worker) Start(ctx context.Context) {
+	for i := 0; i < w.cfg.Concurrency; i++ {
+		w.wg.Add(1)
+		go func(id int) {
+			defer w.wg.Done()
+			w.runLoop(ctx, id)
+		}(i)
+	}
 }

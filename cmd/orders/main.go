@@ -76,11 +76,12 @@ func main() {
 				PollInterval:   2 * time.Second,
 				MaxRetries:     5,
 				InitialBackoff: 200 * time.Millisecond,
+				Concurrency:    5,
 			},
 			log,
 		)
 
-		go worker.Run(ctx)
+		go worker.Start(ctx)
 
 		svc := app2.NewService(txm)
 
