@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"github.com/boris989/fulcrum/internal/messaging/kafka"
 	"github.com/boris989/fulcrum/internal/outbox"
 	_ "github.com/lib/pq"
 	"log/slog"
@@ -54,10 +54,17 @@ func main() {
 			txm = postgres.NewTxManager(db)
 
 			repo := outbox.NewRepository(db)
+			publisher, err := kafka.NewPublisher("localhost:9092")
+
+			if err != nil {
+				log.Error("kafka init failed", slog.Any("err", err))
+				os.Exit(1)
+			}
+
 			worker := outbox.NewWorker(
 				db,
 				repo,
-				&outbox.DummyPublisher{},
+				publisher,
 				outbox.WorkerConfig{
 					BatchSize:    10,
 					PollInterval: 2 * time.Second,
