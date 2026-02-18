@@ -3,19 +3,20 @@ package main
 import (
 	"context"
 	"database/sql"
-	"github.com/boris989/fulcrum/internal/messaging/kafka"
-	"github.com/boris989/fulcrum/internal/outbox"
-	_ "github.com/lib/pq"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/boris989/fulcrum/internal/messaging/kafka"
+	"github.com/boris989/fulcrum/internal/outbox"
+	_ "github.com/lib/pq"
+
 	app2 "github.com/boris989/fulcrum/internal/orders/app"
 	"github.com/boris989/fulcrum/internal/platform/app"
 	"github.com/boris989/fulcrum/internal/platform/config"
 	"github.com/boris989/fulcrum/internal/platform/logger"
-	"github.com/boris989/fulcrum/internal/storage/memory"
 	"github.com/boris989/fulcrum/internal/storage/postgres"
 	"github.com/boris989/fulcrum/internal/transport/httpserver"
 	"github.com/boris989/fulcrum/internal/transport/httpserver/middleware"
@@ -37,43 +38,49 @@ func main() {
 
 	dsn := os.Getenv("DB_DSN")
 
+	if dsn == "" {
+		log.Error("dsn env variable not set")
+		os.Exit(1)
+	}
+
 	a := app.New(func(ctx context.Context) error {
 		var txm app2.TxManager
 
-		if dsn == "" {
-			txm = memory.NewTxManager()
-			log.Info("using in-memory storage")
-		} else {
-			db, err := sql.Open("postgres", dsn)
+		db, err := sql.Open("postgres", dsn)
 
-			if err != nil {
-				log.Error("failed to connect to database", slog.Any("err", err))
-				os.Exit(1)
-			}
-
-			txm = postgres.NewTxManager(db)
-
-			repo := outbox.NewRepository(db)
-			publisher, err := kafka.NewPublisher("localhost:9092")
-
-			if err != nil {
-				log.Error("kafka init failed", slog.Any("err", err))
-				os.Exit(1)
-			}
-
-			worker := outbox.NewWorker(
-				db,
-				repo,
-				publisher,
-				outbox.WorkerConfig{
-					BatchSize:    10,
-					PollInterval: 2 * time.Second,
-				},
-				log,
-			)
-
-			go worker.Run(ctx)
+		if err != nil {
+			log.Error("failed to connect to database", slog.Any("err", err))
+			return err
 		}
+
+		if err := db.PingContext(ctx); err != nil {
+			return err
+		}
+
+		txm = postgres.NewTxManager(db)
+
+		repo := outbox.NewRepository(db)
+		publisher, err := kafka.NewPublisher("localhost:9092")
+
+		if err != nil {
+			log.Error("kafka init failed", slog.Any("err", err))
+			return err
+		}
+
+		worker := outbox.NewWorker(
+			db,
+			repo,
+			publisher,
+			outbox.WorkerConfig{
+				BatchSize:      10,
+				PollInterval:   2 * time.Second,
+				MaxRetries:     5,
+				InitialBackoff: 200 * time.Millisecond,
+			},
+			log,
+		)
+
+		go worker.Run(ctx)
 
 		svc := app2.NewService(txm)
 
@@ -108,16 +115,20 @@ func main() {
 		select {
 		case <-ctx.Done():
 			log.Info("shutdown requested")
-			_ = srv.Shutdown(context.Background(), cfg.ShutdownTimeout)
-			log.Info("http server stopped")
-			return nil
-
 		case err := <-errCh:
-			if err == http.ErrServerClosed {
-				return nil
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return err
 			}
-			return err
 		}
+
+		_ = srv.Shutdown(context.Background(), cfg.ShutdownTimeout)
+		log.Info("http server stopped")
+		log.Info("shutting down worker")
+		worker.Wait()
+		publisher.Close(5000)
+		_ = db.Close()
+		log.Info("shutdown complete")
+		return nil
 	})
 
 	os.Exit(a.Run())

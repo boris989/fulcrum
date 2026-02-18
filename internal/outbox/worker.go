@@ -21,6 +21,7 @@ type Worker struct {
 	publisher Publisher
 	cfg       WorkerConfig
 	logger    *slog.Logger
+	done      chan struct{}
 }
 
 func NewWorker(
@@ -36,10 +37,13 @@ func NewWorker(
 		cfg:       cfg,
 		publisher: publisher,
 		logger:    logger,
+		done:      make(chan struct{}),
 	}
 }
 
 func (w *Worker) Run(ctx context.Context) {
+	defer close(w.done)
+
 	w.logger.Info("outbox worker started")
 
 	for {
@@ -71,7 +75,7 @@ func (w *Worker) processBatch(ctx context.Context) (int, error) {
 	}
 	defer tx.Rollback()
 
-	msgs, err := w.repo.FetchBacth(ctx, tx, w.cfg.BatchSize)
+	msgs, err := w.repo.FetchBatch(ctx, tx, w.cfg.BatchSize)
 	if err != nil {
 		return 0, err
 	}
@@ -131,4 +135,8 @@ func (w *Worker) retryPublish(
 	}
 
 	return fmt.Errorf("max retries exceeded for event %s", m.ID)
+}
+
+func (w *Worker) Wait() {
+	<-w.done
 }

@@ -24,7 +24,7 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) FetchBacth(
+func (r *Repository) FetchBatch(
 	ctx context.Context,
 	tx *sql.Tx,
 	limit int,

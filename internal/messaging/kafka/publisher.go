@@ -51,3 +51,8 @@ func (p *Publisher) Publish(
 		return ctx.Err()
 	}
 }
+
+func (p *Publisher) Close(timeoutMs int) {
+	p.producer.Flush(timeoutMs)
+	p.producer.Close()
+}
