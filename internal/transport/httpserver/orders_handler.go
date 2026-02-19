@@ -3,18 +3,21 @@ package httpserver
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/boris989/fulcrum/internal/orders/app"
+	"github.com/boris989/fulcrum/internal/platform/logger"
 )
 
 type OrdersHandler struct {
-	svc *app.Service
+	svc    *app.Service
+	logger *slog.Logger
 }
 
-func RegisterOrders(mux *http.ServeMux, svc *app.Service) {
-	h := &OrdersHandler{svc: svc}
+func RegisterOrders(mux *http.ServeMux, svc *app.Service, base *slog.Logger) {
+	h := &OrdersHandler{svc: svc, logger: base}
 
 	mux.HandleFunc("/orders", h.handleCreate)
 	mux.HandleFunc("/orders/", h.handlePay)
@@ -34,14 +37,18 @@ func (h *OrdersHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log := logger.FromContext(r.Context(), h.logger)
+
 	var req createOrderRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 	}
 
+	log.Info("create order started")
 	order, err := h.svc.CreateOrder(r.Context(), req.Amount)
 	if err != nil {
+		log.Error("create order failed", "error", err.Error())
 		mapError(w, err)
 		return
 	}

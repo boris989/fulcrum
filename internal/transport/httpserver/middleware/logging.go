@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/boris989/fulcrum/internal/platform/logger"
 )
 
 type responseWriter struct {
@@ -23,16 +25,15 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
-func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
+func Logging(base *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			rw := &responseWriter{ResponseWriter: w, status: http.StatusOK}
 			next.ServeHTTP(rw, r)
 
+			log := logger.FromContext(r.Context(), base)
 			duration := time.Since(start)
-
-			requestID := GetRequestID(r.Context())
 
 			attrs := []any{
 				slog.String("method", r.Method),
@@ -40,15 +41,14 @@ func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.Int("status", rw.status),
 				slog.Int("bytes", rw.bytes),
 				slog.Duration("duration", duration),
-				slog.String("request_id", requestID),
 				slog.String("remote_addr", r.RemoteAddr),
 				slog.String("user_agent", r.UserAgent()),
 			}
 
 			if rw.status >= 500 {
-				logger.Error("http request", attrs...)
+				log.Error("http request", attrs...)
 			} else {
-				logger.Info("http request", attrs...)
+				log.Info("http request", attrs...)
 			}
 		})
 	}

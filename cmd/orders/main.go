@@ -95,7 +95,7 @@ func main() {
 		kafkaHealth := publisher
 
 		httpserver.RegisterHealth(mux, pgHealth, kafkaHealth)
-		httpserver.RegisterOrders(mux, svc)
+		httpserver.RegisterOrders(mux, svc, log)
 		mux.Handle("/metrics", promhttp.Handler())
 
 		handler := httpserver.Chain(
