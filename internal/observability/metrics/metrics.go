@@ -19,11 +19,20 @@ var (
 		},
 		[]string{"method", "path"},
 	)
+
+	HTTPErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_errors_total",
+			Help: "Total HTTP 5xx errors",
+		},
+		[]string{"path"},
+	)
 )
 
 func Init() {
 	prometheus.MustRegister(HTTPRequests)
 	prometheus.MustRegister(HTTPDuration)
+	prometheus.MustRegister(HTTPErrors)
 	prometheus.MustRegister(
 		OutboxLag,
 		OutboxBatchProcessed,

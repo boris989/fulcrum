@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/boris989/fulcrum/internal/observability/metrics"
 	"github.com/boris989/fulcrum/internal/platform/logger"
 )
 
@@ -46,6 +47,7 @@ func Logging(base *slog.Logger) func(http.Handler) http.Handler {
 			}
 
 			if rw.status >= 500 {
+				metrics.HTTPErrors.WithLabelValues(r.URL.Path).Inc()
 				log.Error("http request", attrs...)
 			} else {
 				log.Info("http request", attrs...)
