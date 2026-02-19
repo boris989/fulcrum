@@ -2,28 +2,33 @@ package httpserver
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 	"time"
+
+	"github.com/boris989/fulcrum/internal/platform/health"
 )
 
-func RegisterHealth(mux *http.ServeMux, db *sql.DB) {
+func RegisterHealth(mux *http.ServeMux, db health.Checker, kafka health.Checker) {
 	mux.HandleFunc("/live", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	mux.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
-		if db == nil {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 
-		if err := db.PingContext(ctx); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
+		if db != nil {
+			if err := db.Check(ctx); err != nil {
+				http.Error(w, "db not ready", http.StatusServiceUnavailable)
+				return
+			}
+		}
+
+		if kafka != nil {
+			if err := kafka.Check(ctx); err != nil {
+				http.Error(w, "kafka not ready", http.StatusServiceUnavailable)
+				return
+			}
 		}
 
 		w.WriteHeader(http.StatusOK)

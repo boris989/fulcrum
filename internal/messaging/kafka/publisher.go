@@ -56,3 +56,8 @@ func (p *Publisher) Close(timeoutMs int) {
 	p.producer.Flush(timeoutMs)
 	p.producer.Close()
 }
+
+func (p *Publisher) Check(ctx context.Context) error {
+	_, err := p.producer.GetMetadata(nil, false, 3000)
+	return err
+}

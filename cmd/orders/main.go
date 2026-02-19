@@ -91,7 +91,10 @@ func main() {
 
 		mux := http.NewServeMux()
 
-		httpserver.RegisterHealth(mux, nil)
+		pgHealth := postgres.NewHealthChecker(db)
+		kafkaHealth := publisher
+
+		httpserver.RegisterHealth(mux, pgHealth, kafkaHealth)
 		httpserver.RegisterOrders(mux, svc)
 		mux.Handle("/metrics", promhttp.Handler())
 
