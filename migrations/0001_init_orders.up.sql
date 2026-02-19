@@ -16,7 +16,7 @@ CREATE TABLE outbox (
     payload JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     published_at TIMESTAMPTZ NULL
-)
+);
 
 CREATE INDEX idx_outbox_unpublished
     ON outbox (created_at)

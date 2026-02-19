@@ -2,13 +2,13 @@ SHELL := /bin/bash
 
 .PHONY: test bench
 
+include .env
+
 test:
 	go test ./... -race
 
 bench:
 	go test ./... -bench=. -benchmem
-
-DB_DSN ?= postgres://fulcrum:fulcrum@localhost:5432/fulcrum?sslmode=disable
 
 migrate-up:
 	migrate -path migrations -database "$(DB_DSN)" up
