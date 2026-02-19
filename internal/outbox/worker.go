@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/boris989/fulcrum/internal/observability/metrics"
 )
 
 type WorkerConfig struct {
@@ -70,6 +72,10 @@ func (w *Worker) runLoop(ctx context.Context, id int) {
 }
 
 func (w *Worker) processBatch(ctx context.Context) (int, error) {
+	count, err := w.repo.CountUnpublished(ctx)
+	if err == nil {
+		metrics.OutboxLag.Set(float64(count))
+	}
 	tx, err := w.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -105,6 +111,9 @@ func (w *Worker) processBatch(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
+	metrics.OutboxBatchProcessed.Add(float64(len(msgs)))
+	metrics.OutboxBatchSize.Observe(float64(len(msgs)))
+
 	return len(msgs), nil
 }
 
@@ -115,6 +124,7 @@ func (w *Worker) retryPublish(
 	backoff := w.cfg.InitialBackoff
 
 	for attempt := 1; attempt <= w.cfg.MaxRetries; attempt++ {
+		metrics.OutboxRetries.Inc()
 		err := w.publisher.Publish(ctx, m.EventType, m.AggregateID, m.Payload)
 
 		if err == nil {
@@ -134,6 +144,8 @@ func (w *Worker) retryPublish(
 			return ctx.Err()
 		}
 	}
+
+	metrics.OutboxPublishFailures.Inc()
 
 	return fmt.Errorf("max retries exceeded for event %s", m.ID)
 }

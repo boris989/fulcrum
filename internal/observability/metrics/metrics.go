@@ -24,4 +24,11 @@ var (
 func Init() {
 	prometheus.MustRegister(HTTPRequests)
 	prometheus.MustRegister(HTTPDuration)
+	prometheus.MustRegister(
+		OutboxLag,
+		OutboxBatchProcessed,
+		OutboxBatchSize,
+		OutboxPublishFailures,
+		OutboxRetries,
+	)
 }

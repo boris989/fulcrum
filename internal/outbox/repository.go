@@ -79,3 +79,20 @@ func (r *Repository) MarkPublished(
 
 	return err
 }
+
+func (r *Repository) CountUnpublished(ctx context.Context) (int64, error) {
+	var count int64
+
+	err := r.db.QueryRowContext(ctx, `
+		SELECT 
+			COUNT(*) 
+		FROM outbox 
+		WHERE published_at IS NULL;
+    `).Scan(&count)
+
+	if err != nil {
+		return 0, nil
+	}
+
+	return count, nil
+}
