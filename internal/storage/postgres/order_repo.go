@@ -6,6 +6,7 @@ import (
 
 	"github.com/boris989/fulcrum/internal/orders"
 	"github.com/boris989/fulcrum/internal/orders/app"
+	"go.opentelemetry.io/otel"
 )
 
 type OrderRepo struct {
@@ -13,6 +14,11 @@ type OrderRepo struct {
 }
 
 func (r *OrderRepo) Save(ctx context.Context, o *orders.Order) error {
+	tracer := otel.Tracer("postgres")
+
+	ctx, span := tracer.Start(ctx, "db.SaveOrder")
+	defer span.End()
+	
 	if o.Version() == 0 {
 		_, err := r.tx.ExecContext(ctx, `
         	INSERT INTO orders

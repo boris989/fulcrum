@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"go.opentelemetry.io/otel"
 )
 
 type Publisher struct {
@@ -28,6 +29,11 @@ func (p *Publisher) Publish(
 	key string,
 	payload []byte,
 ) error {
+	tracer := otel.Tracer("kafka")
+
+	ctx, span := tracer.Start(ctx, "kafka.Publish")
+	defer span.End()
+
 	deliveryChan := make(chan kafka.Event, 1)
 
 	err := p.producer.Produce(&kafka.Message{

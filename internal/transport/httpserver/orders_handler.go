@@ -9,6 +9,7 @@ import (
 
 	"github.com/boris989/fulcrum/internal/orders/app"
 	"github.com/boris989/fulcrum/internal/platform/logger"
+	"go.opentelemetry.io/otel"
 )
 
 type OrdersHandler struct {
@@ -37,6 +38,11 @@ func (h *OrdersHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tracer := otel.Tracer("orders")
+
+	ctx, span := tracer.Start(r.Context(), "CreateOrder")
+	defer span.End()
+
 	log := logger.FromContext(r.Context(), h.logger)
 
 	var req createOrderRequest
@@ -46,7 +52,7 @@ func (h *OrdersHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info("create order started")
-	order, err := h.svc.CreateOrder(r.Context(), req.Amount)
+	order, err := h.svc.CreateOrder(ctx, req.Amount)
 	if err != nil {
 		log.Error("create order failed", "error", err.Error())
 		mapError(w, err)

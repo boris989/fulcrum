@@ -11,9 +11,11 @@ import (
 
 	"github.com/boris989/fulcrum/internal/messaging/kafka"
 	"github.com/boris989/fulcrum/internal/observability/metrics"
+	"github.com/boris989/fulcrum/internal/observability/tracing"
 	"github.com/boris989/fulcrum/internal/outbox"
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	app2 "github.com/boris989/fulcrum/internal/orders/app"
 	"github.com/boris989/fulcrum/internal/platform/app"
@@ -26,6 +28,8 @@ import (
 
 func main() {
 	cfg, err := config.Load()
+	shutdownTracing := tracing.Init(cfg.Service)
+	defer shutdownTracing(context.Background())
 
 	if err != nil {
 		_, _ = os.Stderr.WriteString(err.Error() + "\n")
@@ -106,6 +110,8 @@ func main() {
 			middleware.Metrics(),
 			middleware.Timeout(5*time.Second),
 		)
+		handler = otelhttp.NewHandler(handler, "http-server")
+
 		srv := httpserver.New(handler, httpserver.Config{
 			Addr:              cfg.HTTPAddr,
 			ReadHeaderTimeout: 5 * time.Second,
