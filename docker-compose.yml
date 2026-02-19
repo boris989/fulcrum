@@ -69,5 +69,20 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
 
+  app:
+    build: .
+    container_name: fulcrum-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DB_DSN: "postgres://fulcrum:fulcrum@postgres:5432/fulcrum?sslmode=disable"
+      KAFKA_BROKERS: "fulcrum-kafka:9092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "fulcrum-jaeger:4317"
+      HTTP_ADDR: ":8080"
+
 volumes:
   pgdata:
