@@ -2,18 +2,28 @@ package tracing
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
-func Init(serviceName string) func(ctx context.Context) error {
-	exporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
+func Init(serviceName, endpoint string) func(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
+	exporter, err := otlptracegrpc.New(
+		ctx,
+		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithInsecure(),
+	)
+
+	fmt.Println(err, "ERROR")
 	if err != nil {
 		log.Fatalf("failed to create exporter: %v", err)
 	}
@@ -22,6 +32,8 @@ func Init(serviceName string) func(ctx context.Context) error {
 		context.Background(),
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
+			semconv.ServiceVersion("1.0.0"),
+			semconv.DeploymentEnvironment("prod"),
 		),
 	)
 

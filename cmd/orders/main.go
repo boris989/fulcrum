@@ -28,7 +28,7 @@ import (
 
 func main() {
 	cfg, err := config.Load()
-	shutdownTracing := tracing.Init(cfg.Service)
+	shutdownTracing := tracing.Init(cfg.Service, "localhost:4317")
 	defer shutdownTracing(context.Background())
 
 	if err != nil {
