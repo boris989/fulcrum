@@ -5,8 +5,16 @@ include .env.dev
 
 .PHONY: build run up down logs ps clean test bench
 
+VERSION ?= dev
+COMMIT  ?= $(shell git rev-parse --short HEAD)
+BUILD_TIME ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+
 build:
-	go build -o bin/$(APP) ./cmd/orders
+	go build -ldflags "\
+		-X github.com/boris989/fulcrum/internal/platform/version.Version=$(VERSION) \
+		-X github.com/boris989/fulcrum/internal/platform/version.Commit=$(COMMIT) \
+		-X github.com/boris989/fulcrum/internal/platform/version.BuildTime=$(BUILD_TIME)" \
+		-o bin/$(APP) ./cmd/orders
 
 run:
 	go run ./cmd/orders

@@ -7,8 +7,16 @@ RUN go mod download
 
 COPY . .
 
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILD_TIME=unknown
+
 RUN GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" \
+    go build -trimpath \
+    -ldflags "-s -w \
+    -X github.com/boris989/fulcrum/internal/platform/version.Version=${VERSION} \
+    -X github.com/boris989/fulcrum/internal/platform/version.Commit=${COMMIT} \
+    -X github.com/boris989/fulcrum/internal/platform/version.BuildTime=${BUILD_TIME}" \
     -o /out/fulcrum ./cmd/orders
 
 # ----- runtime stage ------

@@ -14,6 +14,7 @@ import (
 	"github.com/boris989/fulcrum/internal/observability/metrics"
 	"github.com/boris989/fulcrum/internal/observability/tracing"
 	"github.com/boris989/fulcrum/internal/outbox"
+	"github.com/boris989/fulcrum/internal/platform/version"
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -52,6 +53,12 @@ func main() {
 		Env:     cfg.Env,
 		Level:   slog.LevelInfo,
 	})
+
+	log.Info("service starting",
+		"version", version.Version,
+		"commit", version.Commit,
+		"build_time", version.BuildTime,
+	)
 
 	metrics.Init()
 

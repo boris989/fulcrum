@@ -75,7 +75,12 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VERSION: "1.0.0"
+        COMMIT: "local"
+        BUILD_TIME: "local"
     container_name: fulcrum-app
     restart: unless-stopped
     depends_on:
