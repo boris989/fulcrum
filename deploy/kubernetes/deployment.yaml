@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fulcrum
+  namespace: fulcrum
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fulcrum
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: fulcrum
+    spec:
+      initContainers:
+        - name: migrate
+          image: fulcrum-migrate:latest
+          command:
+            [
+              "migrate",
+              "-path", "/migrations",
+              "-database", "$(DB_DSN)",
+              "up"
+            ]
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: fulcrum-secret
+                  key: DB_DSN
+
+      containers:
+        - name: app
+          image: fulcrum:1.0.0
+          ports:
+            - containerPort: 8080
+
+          envFrom:
+            - configMapRef:
+                name: fulcrum-config
+            - secretRef:
+                name: fulcrum-secret
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
