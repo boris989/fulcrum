@@ -52,3 +52,17 @@ bench:
 
 lint:
 	golangci-lint run
+
+smoke:
+	docker compose up -d --build
+	sleep 10
+	curl -f http://localhost:8080/live
+	curl -f http://localhost:8080/ready
+	curl -f http://localhost:8080/metrics
+	curl -X POST http://localhost:8080/orders \
+		-H "Content-Type: application/json" \
+		-d '{"user_id":"smoke","amount":100,"currency":"RUB"}'
+	echo "Smoke test passed"
+
+smoke-down:
+	docker compose down
