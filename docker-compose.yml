@@ -42,7 +42,7 @@ services:
 
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
     healthcheck:
-      test: [ "CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list 1>/dev/null" ]
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/9092"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -55,6 +55,11 @@ services:
       - "16686:16686"   # UI
       - "4317:4317"     # OTLP gRPC
       - "4318:4318"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:16686"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   prometheus:
     image: prom/prometheus:v2.51.0
@@ -83,6 +88,12 @@ services:
       KAFKA_BROKERS: "fulcrum-kafka:9092"
       OTEL_EXPORTER_OTLP_ENDPOINT: "fulcrum-jaeger:4317"
       HTTP_ADDR: ":8080"
+    healthcheck:
+      test: ["CMD", "/fulcrum", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
 volumes:
   pgdata:

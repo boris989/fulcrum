@@ -18,7 +18,6 @@ WORKDIR /
 
 COPY --from=build /out/fulcrum /fulcrum
 COPY migrations /migrations
-USER nonroot:nonroot
 
 EXPOSE 8080
 

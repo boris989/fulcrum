@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -27,6 +28,14 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:8080", time.Second)
+		if err != nil {
+			os.Exit(1)
+		}
+		conn.Close()
+		os.Exit(0)
+	}
 	cfg, err := config.Load()
 
 	shutdownTracing := tracing.Init(cfg.Service, cfg.OtelExporterOTLPEndpoint)
