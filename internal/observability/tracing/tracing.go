@@ -2,7 +2,6 @@ package tracing
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -23,7 +22,6 @@ func Init(serviceName, endpoint string) func(ctx context.Context) error {
 		otlptracegrpc.WithInsecure(),
 	)
 
-	fmt.Println(err, "ERROR")
 	if err != nil {
 		log.Fatalf("failed to create exporter: %v", err)
 	}

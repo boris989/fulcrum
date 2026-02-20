@@ -8,18 +8,22 @@ import (
 )
 
 type Config struct {
-	Env             string
-	Service         string
-	HTTPAddr        string
-	ShutdownTimeout time.Duration
+	Env                      string
+	Service                  string
+	HTTPAddr                 string
+	ShutdownTimeout          time.Duration
+	KafkaBrokers             string
+	OtelExporterOTLPEndpoint string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		Env:             getEnv("APP_ENV", "local"),
-		Service:         getEnv("APP_SERVICE", "orders"),
-		HTTPAddr:        getEnv("HTTP_ADDR", ":8080"),
-		ShutdownTimeout: getEnvDuration("SHUTDOWN_TIMEOUT", 5*time.Second),
+		Env:                      getEnv("APP_ENV", "local"),
+		Service:                  getEnv("APP_SERVICE", "orders"),
+		HTTPAddr:                 getEnv("HTTP_ADDR", ":8080"),
+		ShutdownTimeout:          getEnvDuration("SHUTDOWN_TIMEOUT", 5*time.Second),
+		KafkaBrokers:             getEnv("KAFKA_BROKERS", ""),
+		OtelExporterOTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 	}
 
 	if err := validate(cfg); err != nil {

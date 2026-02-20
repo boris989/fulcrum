@@ -28,7 +28,8 @@ import (
 
 func main() {
 	cfg, err := config.Load()
-	shutdownTracing := tracing.Init(cfg.Service, "localhost:4317")
+
+	shutdownTracing := tracing.Init(cfg.Service, cfg.OtelExporterOTLPEndpoint)
 	defer shutdownTracing(context.Background())
 
 	if err != nil {
@@ -68,7 +69,7 @@ func main() {
 		txm = postgres.NewTxManager(db)
 
 		repo := outbox.NewRepository(db)
-		publisher, err := kafka.NewPublisher("localhost:9092")
+		publisher, err := kafka.NewPublisher(cfg.KafkaBrokers)
 
 		if err != nil {
 			log.Error("kafka init failed", slog.Any("err", err))
