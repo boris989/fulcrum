@@ -36,9 +36,10 @@ func main() {
 		conn.Close()
 		os.Exit(0)
 	}
+
 	cfg, err := config.Load()
 
-	shutdownTracing := tracing.Init(cfg.Service, cfg.OtelExporterOTLPEndpoint)
+	shutdownTracing := tracing.Init(cfg.Service, cfg.OTLPEndpoint)
 	defer shutdownTracing(context.Background())
 
 	if err != nil {
@@ -54,17 +55,10 @@ func main() {
 
 	metrics.Init()
 
-	dsn := os.Getenv("DB_DSN")
-
-	if dsn == "" {
-		log.Error("dsn env variable not set")
-		os.Exit(1)
-	}
-
 	a := app.New(func(ctx context.Context) error {
 		var txm app2.TxManager
 
-		db, err := sql.Open("postgres", dsn)
+		db, err := sql.Open("postgres", cfg.DBDSN)
 
 		if err != nil {
 			log.Error("failed to connect to database", slog.Any("err", err))

@@ -2,28 +2,35 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
 )
 
 type Config struct {
-	Env                      string
-	Service                  string
-	HTTPAddr                 string
-	ShutdownTimeout          time.Duration
-	KafkaBrokers             string
-	OtelExporterOTLPEndpoint string
+	Env             string
+	Service         string
+	HTTPAddr        string
+	ShutdownTimeout time.Duration
+
+	DBDSN        string
+	KafkaBrokers string
+	OTLPEndpoint string
+	LogLevel     string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		Env:                      getEnv("APP_ENV", "local"),
-		Service:                  getEnv("APP_SERVICE", "orders"),
-		HTTPAddr:                 getEnv("HTTP_ADDR", ":8080"),
-		ShutdownTimeout:          getEnvDuration("SHUTDOWN_TIMEOUT", 5*time.Second),
-		KafkaBrokers:             getEnv("KAFKA_BROKERS", ""),
-		OtelExporterOTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		Service:         mustGetEnv("APP_SERVICE"),
+		Env:             getEnv("APP_ENV", "dev"),
+		HTTPAddr:        getEnv("HTTP_ADDR", ":8080"),
+		ShutdownTimeout: getEnvDuration("SHUTDOWN_TIMEOUT", 5*time.Second),
+
+		DBDSN:        mustGetEnv("DB_DSN"),
+		KafkaBrokers: mustGetEnv("KAFKA_BROKERS"),
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		LogLevel:     getEnv("LOG_LEVEL", "info"),
 	}
 
 	if err := validate(cfg); err != nil {
@@ -75,4 +82,13 @@ func getEnvDuration(key string, def time.Duration) time.Duration {
 		return def
 	}
 	return d
+}
+
+func mustGetEnv(key string) string {
+	val := os.Getenv(key)
+
+	if val == "" {
+		panic(fmt.Sprintf("%s must not be empty", key))
+	}
+	return val
 }

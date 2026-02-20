@@ -1,7 +1,7 @@
 APP=fulcrum
 DOCKER_COMPOSE=docker compose
 
-include .env
+include .env.dev
 
 .PHONY: build run up down logs ps clean test bench
 

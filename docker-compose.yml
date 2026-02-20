@@ -83,11 +83,8 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
-    environment:
-      DB_DSN: "postgres://fulcrum:fulcrum@postgres:5432/fulcrum?sslmode=disable"
-      KAFKA_BROKERS: "fulcrum-kafka:9092"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "fulcrum-jaeger:4317"
-      HTTP_ADDR: ":8080"
+    env_file:
+      - .env.dev
     healthcheck:
       test: ["CMD", "/fulcrum", "healthcheck"]
       interval: 10s
