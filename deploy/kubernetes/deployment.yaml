@@ -21,6 +21,7 @@ spec:
       initContainers:
         - name: migrate
           image: fulcrum-migrate:latest
+          imagePullPolicy: IfNotPresent
           command:
             [
               "migrate",
@@ -38,6 +39,7 @@ spec:
       containers:
         - name: app
           image: fulcrum:1.0.0
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
 
