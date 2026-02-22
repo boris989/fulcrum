@@ -28,7 +28,10 @@ import (
 	"github.com/boris989/fulcrum/internal/transport/httpserver/middleware"
 )
 
+func f() error { return nil }
+
 func main() {
+	f()
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		conn, err := net.DialTimeout("tcp", "127.0.0.1:8080", time.Second)
 		if err != nil {

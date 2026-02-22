@@ -23,6 +23,17 @@ func NewPublisher(brokers string) (*Publisher, error) {
 	return &Publisher{producer: p}, nil
 }
 
+func buildMessage(topic string, key string, payload []byte) *kafka.Message {
+	return &kafka.Message{
+		TopicPartition: kafka.TopicPartition{
+			Topic:     &topic,
+			Partition: kafka.PartitionAny,
+		},
+		Key:   []byte(key),
+		Value: payload,
+	}
+}
+
 func (p *Publisher) Publish(
 	ctx context.Context,
 	topic string,
@@ -36,14 +47,7 @@ func (p *Publisher) Publish(
 
 	deliveryChan := make(chan kafka.Event, 1)
 
-	err := p.producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{
-			Topic:     &topic,
-			Partition: kafka.PartitionAny,
-		},
-		Key:   []byte(key),
-		Value: payload,
-	}, deliveryChan)
+	err := p.producer.Produce(buildMessage(topic, key, payload), deliveryChan)
 
 	if err != nil {
 		return err
