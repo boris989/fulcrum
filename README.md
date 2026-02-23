@@ -16,3 +16,7 @@ Production-style microservice platform written in Go 1.25.
 ## Commands
 - make test
 - make bench
+
+# Build local image
+- docker build -f Dockerfile -t fulcrum:1.0.3 . 
+- kind load docker-image fulcrum:1.0.3

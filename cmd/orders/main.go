@@ -12,6 +12,7 @@ import (
 
 	"github.com/boris989/fulcrum/internal/messaging/kafka"
 	"github.com/boris989/fulcrum/internal/observability/metrics"
+	"github.com/boris989/fulcrum/internal/observability/pprof"
 	"github.com/boris989/fulcrum/internal/observability/tracing"
 	"github.com/boris989/fulcrum/internal/outbox"
 	"github.com/boris989/fulcrum/internal/platform/version"
@@ -28,10 +29,7 @@ import (
 	"github.com/boris989/fulcrum/internal/transport/httpserver/middleware"
 )
 
-func f() error { return nil }
-
 func main() {
-	f()
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		conn, err := net.DialTimeout("tcp", "127.0.0.1:8080", time.Second)
 		if err != nil {
@@ -114,6 +112,10 @@ func main() {
 
 		httpserver.RegisterHealth(mux, pgHealth, kafkaHealth)
 		httpserver.RegisterOrders(mux, svc, log)
+
+		if cfg.Env == "dev" {
+			pprof.Register(mux)
+		}
 		mux.Handle("/metrics", promhttp.Handler())
 
 		handler := httpserver.Chain(
@@ -122,15 +124,15 @@ func main() {
 			middleware.RequestID(),
 			middleware.Logging(log),
 			middleware.Metrics(),
-			middleware.Timeout(5*time.Second),
+			middleware.Timeout(180*time.Second),
 		)
 		handler = otelhttp.NewHandler(handler, "http-server")
 
 		srv := httpserver.New(handler, httpserver.Config{
 			Addr:              cfg.HTTPAddr,
-			ReadHeaderTimeout: 5 * time.Second,
-			ReadTimeout:       10 * time.Second,
-			WriteTimeout:      10 * time.Second,
+			ReadHeaderTimeout: 60 * time.Second,
+			ReadTimeout:       60 * time.Second,
+			WriteTimeout:      60 * time.Second,
 			IdleTimeout:       60 * time.Second,
 			ShutdownTimeout:   cfg.ShutdownTimeout,
 		})
