@@ -13,6 +13,7 @@ import (
 	"github.com/boris989/fulcrum/internal/messaging/kafka"
 	"github.com/boris989/fulcrum/internal/observability/metrics"
 	"github.com/boris989/fulcrum/internal/observability/pprof"
+	"github.com/boris989/fulcrum/internal/observability/trace"
 	"github.com/boris989/fulcrum/internal/observability/tracing"
 	"github.com/boris989/fulcrum/internal/outbox"
 	"github.com/boris989/fulcrum/internal/platform/version"
@@ -115,7 +116,9 @@ func main() {
 
 		if cfg.Env == "dev" {
 			pprof.Register(mux)
+			mux.Handle("/debug/trace", trace.Handler())
 		}
+
 		mux.Handle("/metrics", promhttp.Handler())
 
 		handler := httpserver.Chain(
