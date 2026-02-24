@@ -38,7 +38,7 @@ spec:
 
       containers:
         - name: app
-          image: fulcrum:1.0.4
+          image: fulcrum:1.0.9
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

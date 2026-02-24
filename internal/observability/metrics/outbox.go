@@ -36,4 +36,10 @@ var (
 			Buckets: []float64{1, 5, 10, 20, 50, 100},
 		},
 	)
+
+	KafkaCircuitOpen = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_circuit_open_total",
+			Help: "Total times kafka circuit opened",
+		})
 )

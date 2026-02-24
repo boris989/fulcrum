@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -121,7 +122,6 @@ func (w *Worker) retryPublish(
 	ctx context.Context,
 	m Message,
 ) error {
-	backoff := w.cfg.InitialBackoff
 
 	for attempt := 1; attempt <= w.cfg.MaxRetries; attempt++ {
 		metrics.OutboxRetries.Inc()
@@ -137,9 +137,10 @@ func (w *Worker) retryPublish(
 			slog.Any("err", err),
 		)
 
+		b := backoff(attempt)
+
 		select {
-		case <-time.After(backoff):
-			backoff *= 2
+		case <-time.After(b):
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -162,4 +163,10 @@ func (w *Worker) Start(ctx context.Context) {
 			w.runLoop(ctx, id)
 		}(i)
 	}
+}
+
+func backoff(attempt int) time.Duration {
+	base := time.Duration(1<<attempt) * time.Second
+	jitter := time.Duration(rand.Int63n(int64(base / 2)))
+	return base/2 + jitter
 }

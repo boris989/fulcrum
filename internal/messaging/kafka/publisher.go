@@ -2,25 +2,32 @@ package kafka
 
 import (
 	"context"
+	"errors"
+	"time"
 
+	"github.com/boris989/fulcrum/internal/platform/resilience"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"go.opentelemetry.io/otel"
 )
 
 type Publisher struct {
 	producer *kafka.Producer
+	circuit  *resilience.Circuit
 }
 
 func NewPublisher(brokers string) (*Publisher, error) {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": brokers,
+		"bootstrap.servers":  brokers,
+		"message.timeout.ms": 5000,
 	})
+
+	circuit := resilience.New(5, 30*time.Second)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Publisher{producer: p}, nil
+	return &Publisher{producer: p, circuit: circuit}, nil
 }
 
 func buildMessage(topic string, key string, payload []byte) *kafka.Message {
@@ -47,17 +54,28 @@ func (p *Publisher) Publish(
 
 	deliveryChan := make(chan kafka.Event, 1)
 
+	if !p.circuit.Allow() {
+		return errors.New("kafka circuit open")
+	}
+
 	err := p.producer.Produce(buildMessage(topic, key, payload), deliveryChan)
 
 	if err != nil {
+		p.circuit.OnFailure()
 		return err
 	}
 
 	select {
 	case e := <-deliveryChan:
 		m := e.(*kafka.Message)
-		return m.TopicPartition.Error
+		if m.TopicPartition.Error != nil {
+			p.circuit.OnFailure()
+			return m.TopicPartition.Error
+		}
+		p.circuit.OnSuccess()
+		return nil
 	case <-ctx.Done():
+		p.circuit.OnFailure()
 		return ctx.Err()
 	}
 }

@@ -39,5 +39,6 @@ func Init() {
 		OutboxBatchSize,
 		OutboxPublishFailures,
 		OutboxRetries,
+		KafkaCircuitOpen,
 	)
 }

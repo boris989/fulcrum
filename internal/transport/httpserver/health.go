@@ -32,12 +32,12 @@ func RegisterHealth(mux *http.ServeMux, db health.Checker, kafka health.Checker)
 			}
 		}
 
-		if kafka != nil {
-			if err := kafka.Check(ctx); err != nil {
-				http.Error(w, "kafka not ready", http.StatusServiceUnavailable)
-				return
-			}
-		}
+		//if kafka != nil {
+		//	if err := kafka.Check(ctx); err != nil {
+		//		http.Error(w, "kafka not ready", http.StatusServiceUnavailable)
+		//		return
+		//	}
+		//}
 
 		w.WriteHeader(http.StatusOK)
 	})
