@@ -17,6 +17,7 @@ import (
 	"github.com/boris989/fulcrum/internal/observability/tracing"
 	"github.com/boris989/fulcrum/internal/outbox"
 	"github.com/boris989/fulcrum/internal/platform/version"
+	"github.com/grafana/pyroscope-go"
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -42,19 +43,38 @@ func main() {
 
 	cfg, err := config.Load()
 
-	shutdownTracing := tracing.Init(cfg.Service, cfg.OTLPEndpoint)
-	defer shutdownTracing(context.Background())
-
 	if err != nil {
 		_, _ = os.Stderr.WriteString(err.Error() + "\n")
 		os.Exit(1)
 	}
+
+	shutdownTracing := tracing.Init(cfg.Service, cfg.OTLPEndpoint)
+	defer shutdownTracing(context.Background())
 
 	log := logger.New(logger.Config{
 		Service: cfg.Service,
 		Env:     cfg.Env,
 		Level:   slog.LevelInfo,
 	})
+
+	log.Info("pyroscope server", "host", cfg.PyroscopeServer)
+	if cfg.PyroscopeServer != "" {
+		_, err := pyroscope.Start(pyroscope.Config{
+			ApplicationName: "fulcrum",
+			ServerAddress:   cfg.PyroscopeServer,
+			ProfileTypes: []pyroscope.ProfileType{
+				pyroscope.ProfileCPU,
+				pyroscope.ProfileAllocObjects,
+				pyroscope.ProfileAllocSpace,
+				pyroscope.ProfileInuseObjects,
+				pyroscope.ProfileInuseSpace,
+				pyroscope.ProfileGoroutines,
+			},
+		})
+		if err != nil {
+			log.Error("pyroscope failed", "err", err)
+		}
+	}
 
 	log.Info("service starting",
 		"version", version.Version,
@@ -121,11 +141,13 @@ func main() {
 
 		mux.Handle("/metrics", promhttp.Handler())
 
+		rl := middleware.NewRateLimiter(20, 40)
 		handler := httpserver.Chain(
 			mux,
 			middleware.Recovery(log),
 			middleware.RequestID(),
 			middleware.Logging(log),
+			rl.Middleware,
 			middleware.Metrics(),
 			middleware.Timeout(180*time.Second),
 		)

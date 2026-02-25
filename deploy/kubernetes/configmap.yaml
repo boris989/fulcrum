@@ -10,3 +10,4 @@ data:
   LOG_LEVEL: "info"
   KAFKA_BROKERS: "kafka:9092"
   OTEL_EXPORTER_OTLP_ENDPOINT: "jaeger:4317"
+  PYROSCOPE_SERVER: "http://pyroscope:4040"

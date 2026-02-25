@@ -14,10 +14,11 @@ type Config struct {
 	HTTPAddr        string
 	ShutdownTimeout time.Duration
 
-	DBDSN        string
-	KafkaBrokers string
-	OTLPEndpoint string
-	LogLevel     string
+	DBDSN           string
+	KafkaBrokers    string
+	OTLPEndpoint    string
+	PyroscopeServer string
+	LogLevel        string
 }
 
 func Load() (Config, error) {
@@ -27,10 +28,11 @@ func Load() (Config, error) {
 		HTTPAddr:        getEnv("HTTP_ADDR", ":8080"),
 		ShutdownTimeout: getEnvDuration("SHUTDOWN_TIMEOUT", 5*time.Second),
 
-		DBDSN:        mustGetEnv("DB_DSN"),
-		KafkaBrokers: mustGetEnv("KAFKA_BROKERS"),
-		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-		LogLevel:     getEnv("LOG_LEVEL", "info"),
+		DBDSN:           mustGetEnv("DB_DSN"),
+		KafkaBrokers:    mustGetEnv("KAFKA_BROKERS"),
+		OTLPEndpoint:    getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		PyroscopeServer: getEnv("PYROSCOPE_SERVER", ""),
+		LogLevel:        getEnv("LOG_LEVEL", "info"),
 	}
 
 	if err := validate(cfg); err != nil {
